@@ -1,0 +1,137 @@
+#chip 16f887
+
+#define LCD_IO 4
+#define LCD_RW PORTC.6
+#define LCD_Enable PORTC.5
+#define LCD_RS PORTC.7
+#define LCD_DB4 PORTD.4
+#define LCD_DB5 PORTD.5
+#define LCD_DB6 PORTD.6
+#define LCD_DB7 PORTD.7
+#define FLAME THRESHOLD 50
+
+dim anWall as byte
+dim anWall2 as byte
+dim distWall as byte
+dim distWall2 as byte
+dim anFlame as byte
+dim lines as byte
+dim LCDclock as byte
+dim mode as word
+dim timer as word
+dim runTimer as bit
+
+lines = 0
+LCDclock = 0
+timer = 0
+runTimer = 1
+mode = @FollowWall
+
+PORTC.6 = 0
+
+do
+updateSensors
+Indcall mode
+if (LCDclock & 0b00001111) = 0 then updateLCD
+LCDclock++
+if runTimer then timer++
+
+wait 4 ms
+loop
+
+Sub updateSensors
+
+  anWall = ReadAD(AN8,TRUE)
+  distWall = ((6787 / (anWall-3)) - 4) / 5
+  anWall2 = ReadAD(AN10,TRUE)
+  distWall2 = ((6787 / (anWall2-3)) - 4) / 5
+  anFlame = ReadAD(AN11,TRUE)
+
+End sub
+
+Sub FollowWall
+
+if anFlame < FLAME THRESHOLD Then
+  PORTA.2 = 0
+  PORTA.3 = 0
+  PORTA.4 = 0
+  PORTA.5 = 0
+
+  PORTA.0 = 1
+
+  'mode = @flame
+
+Else
+  if distWall < 20 Then
+    PORTA.2 = 0
+    PORTA.3 = 1
+    PORTA.4 = 0
+    PORTA.5 = 0
+
+  Else
+    if distWall2 < 15 Then
+      PORTA.2 = 0
+      PORTA.3 = 1
+      PORTA.4 = 0
+      PORTA.5 = 0
+    Else
+        if distWall2 > 17 Then
+          PORTA.2 = 0
+          PORTA.3 = 0
+          PORTA.4 = 0
+          PORTA.5 = 1
+        else
+          PORTA.2 = 0
+          PORTA.3 = 1
+          PORTA.4 = 0
+          PORTA.5 = 1
+        end if
+    end if
+
+  end if
+
+End if
+
+
+
+End sub
+
+Sub updateLCD
+
+  cls
+
+  Locate 0, 0
+  Print "Flame:"
+  Print anFlame
+
+  Locate 1, 0
+  Print "W1:"
+  Print distWall
+
+  Locate 1, 8
+  Print "W2:"
+  Print distWall2
+
+  Locate 0,14
+  if PORTA.1 = 0 Then
+    Print "0"
+  else
+    Print "1"
+  end if
+
+End sub
+
+Sub flame
+  PORTA.0 = 1
+
+    If anFlame < FLAME THRESHOLD Then
+      PORTA.2 = 0
+      PORTA.3 = 0
+      PORTA.4 = 0
+      PORTA.5 = 0
+    Else
+      mode = @FollowWall
+    End if
+
+End sub
+
